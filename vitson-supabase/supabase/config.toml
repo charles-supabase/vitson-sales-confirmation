@@ -1,0 +1,4 @@
+# Only the function config is needed here; keep the rest of your existing config if you already have one.
+[functions.set-default-alias]
+# The browser calls this with the project's anon key, which the platform checks (verify_jwt).
+verify_jwt = true

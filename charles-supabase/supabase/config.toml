@@ -1,0 +1,4 @@
+# Only the function config is needed here; keep the rest of your existing config if you already have one.
+[functions.sync-reference-data]
+# The Database Webhooks authenticate with a shared secret header instead of a user JWT.
+verify_jwt = false
