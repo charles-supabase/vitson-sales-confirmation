@@ -216,3 +216,8 @@ new color reference; confirming adds it to `tbl_color_ref` and saves the job ord
 Setup order: (1) `sql/12_app_users.sql`; (2) in the vitson-supabase folder: `supabase secrets set OFFICE_PUBLIC_IP=<office IPv4>`, `supabase functions deploy app-login --no-verify-jwt`, and redeploy `set-default-alias` if you already did;
 (3) set each password in the SQL Editor: `select public.app_set_password('Mark', '...');`; (4) run the app, sign in, press Check connection from an office computer; (5) only then run `sql/13_lock_down.sql` (`sql/13_undo_lock_down.sql` reopens everything).
 - **Delivery receipt columns (corrected):** roll count, roll weight, roll type (Body, 1x1, CC for the others), fabric, dye process, color (tone code + color name), customer JO no., FW = size of that roll type (body, 1x1, cc). The packing list tag shows the full job ticket A#-#####-#-AA-#.
+
+## Deploying on Vercel
+Import the Git repository in Vercel with **Root Directory = app**, Framework Preset **Vite** (build `npm run build`, output `dist`). Environment variables (Project Settings -> Environment Variables, tick Production, Preview and Development):
+`VITE_VITSON_SUPABASE_URL` and `VITE_VITSON_SUPABASE_ANON_KEY` (vitson-recipe URL and anon/publishable key). Vite puts them into the build, so redeploy after changing them. Never add a service role key to Vercel or to any VITE_ variable.
+`OFFICE_PUBLIC_IP` is NOT a Vercel variable here: it is a secret of the app-login Edge Function (`supabase secrets set OFFICE_PUBLIC_IP=...`). `.env` and `.env.local` are in `.gitignore`.
