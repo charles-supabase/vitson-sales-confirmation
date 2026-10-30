@@ -203,3 +203,16 @@ new color reference; confirming adds it to `tbl_color_ref` and saves the job ord
   BIG: alias name, TIN and address (the customer's own details when the delivery has no alias), table Quantity / Weight / Description / Color / J.O. / FW / Remarks. SMALL: customer name only, table Roll / Weight / Stock / Fabric / Process / Shade / Job Order / FW / Remark.
   Both end with the packing list: per job ticket the roll weights per roll type (6 per line) and the total. Fields: Description/Shade = stock no. (Body) or roll type, fabric, dye process, tone code + color; Color/Remark = color reference; J.O. = customer JO no.; size (body, 1x1, cc) in Remarks (BIG) or FW (SMALL).
   **Data only (pre-printed form)** hides the form's text and lines. Paper size is A4 for now.
+
+## User access control (login, modules, office network)
+- **Users:** Charles and Susan (super admins: anywhere, every module), Ana (every module), Mark, Joyce and Arnel (every module except Recipe), Michelle (no module yet, see below). Modules are the dashboard items:
+  Sales Confirmations, Job Orders, Recipe, Tracking, Deliveries. Without the Recipe module the Recipe dashboard item AND the Recipe tab of the entry view are hidden.
+- **Sign in:** everybody signs in with user + password before anything loads. 5 wrong passwords lock that user for 15 minutes. A session lasts 12 hours; the app re-checks it when you come back to the window and every 5 minutes.
+  **Change password** and **Log out** are in the page header. Passwords are stored as bcrypt hashes (`tbl_app_user`), at least 8 characters.
+- **Office rule:** regular users can sign in only from the office address (IPv4) kept in the Edge Function secret `OFFICE_PUBLIC_IP`; super admins from anywhere. A regular user's session ends as soon as the app sees them outside the office.
+  **Check connection** on the sign-in screen shows which address the server sees.
+- **Database:** `sql/13_lock_down.sql` turns every table policy (the TESTING anon ones too) into "valid session token required"; the recipe tables also need the Recipe module. Without signing in the anon key reads and writes nothing.
+
+Setup order: (1) `sql/12_app_users.sql`; (2) in the vitson-supabase folder: `supabase secrets set OFFICE_PUBLIC_IP=<office IPv4>`, `supabase functions deploy app-login --no-verify-jwt`, and redeploy `set-default-alias` if you already did;
+(3) set each password in the SQL Editor: `select public.app_set_password('Mark', '...');`; (4) run the app, sign in, press Check connection from an office computer; (5) only then run `sql/13_lock_down.sql` (`sql/13_undo_lock_down.sql` reopens everything).
+- **Delivery receipt columns (corrected):** roll count, roll weight, roll type (Body, 1x1, CC for the others), fabric, dye process, color (tone code + color name), customer JO no., FW = size of that roll type (body, 1x1, cc). The packing list tag shows the full job ticket A#-#####-#-AA-#.

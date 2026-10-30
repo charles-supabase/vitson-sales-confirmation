@@ -36,7 +36,7 @@ const unwrap = ({ data, error }) => {
 
 export function friendlyError(err) {
   if (err?.code === "23503") return "This record is still linked to other records. Remove the linked records first.";
-  if (err?.code === "42501") return `Not allowed by row level security: ${err.message}. Add a policy for this table (see the sql folder, files 04 and 05).`;
+  if (err?.code === "42501") return "You are not allowed to do this, or your session has ended. Sign in again, or ask Charles or Susan for access.";
   return err?.message ?? "Something went wrong.";
 }
 

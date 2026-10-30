@@ -21,6 +21,8 @@ sql/                           run in vitson-recipe SQL Editor; all idempotent; 
   06_fix_anon_ratio_and_color_ref.sql TESTING ONLY: anon policy for tbl_recipe_ratio, tbl_color_ref insert
   07_tracking.sql                tbl_tracking machine columns, unique per job order, tracking_weight_summary(), policies
   08_delivery_form.sql           default_alias_id column, identity on delivery ids, copied triggers, delivery_candidates/delivery_save, policies
+  13_lock_down.sql / 13_undo_lock_down.sql  every policy -> valid app session (x-app-token), recipe tables need module recipe (NEW, run LAST)
+  12_app_users.sql               tbl_app_user / tbl_app_session / tbl_app_login_attempt, app_login, app_verify, app_can, app_set_password ... (NEW)
   11_customer_price.sql          unique index + authenticated/anon policies on tbl_customer_price (NEW: user must run it; table existed with RLS on and no policy)
   10_status_filter.sql           job_order_status_ids(jsonb) + tracking_weight_summary(from,to,cond jsonb) (NEW: user must run it)
   09_delivery_copied_always_reset.sql  copied = false on EVERY delivery update unless the update sets copied itself (NEW: user must run it)
@@ -28,6 +30,7 @@ charles-supabase/supabase/
   config.toml                    verify_jwt=false for the webhook function
   functions/sync-reference-data/index.ts   ONE Edge Function for all Database Webhooks (+ backfill)
 vitson-supabase/supabase/
+  functions/app-login/index.ts   NEW: login / verify / ip-check, office rule via secret OFFICE_PUBLIC_IP (cf-connecting-ip)
   config.toml
   functions/set-default-alias/index.ts     NEW, NOT YET DEPLOYED (see section 8)
 app/
@@ -105,3 +108,7 @@ Price lookup + lock (untested by the user): JobOrderSection.resolveUnitPrice run
 Lock = delivery.copied true (copiedJobOrderIds) -> job order form, fabric rolls, delivery form and delivered rolls read-only; password 1688 held in lib/lock.jsx; unlocked ids live in memory until reload. UI only, not enforced in the database. ASSUMPTION: fabric rolls and delivered rolls count as "related records". Not done: resetting delivery.copied when an unlocked job order or roll edit is saved.
 
 Job ticket pattern is A#-#####-#-AA-# (format.js typingTicket(strict), isTicket; strict only for new tickets or conforming ones). Delivery receipt print built from the user's two sample photos (dr_big, dr_small); layout and field mapping are my reading of the photos and have NOT been checked against paper: first two ticket groups (A#-#####) printed in the packing list tag, row order 1x1 then Body (BIG) / Body then 1x1 (SMALL), black DR number overprint only in Data only mode, A4 page, Ref/Approved/Checked/Delivered/Truck/Driver blank. Ask the user to compare a test print.
+
+## 10. Access control (built, SQL tested on the live DB in rolled-back transactions; Edge Function and UI NOT run)
+Own users table in vitson-recipe (NOT charles' tbl_User, NOT Supabase Auth). Login = Edge Function app-login (verify_jwt off) -> public.app_login -> random session token (SHA-256 stored) sent as header x-app-token by lib/supabase.js; RLS reads it through public.app_can(module) (request.headers). lib/auth.jsx (AuthProvider, MODULES map, can()), LoginView, ChangePasswordDialog; App.jsx hides nav items/tabs by module. set-default-alias now also requires the token + module deliveries.
+Users seeded: Charles, Susan (super admin), Ana (all), Mark, Joyce, Arnel (all but recipe), Michelle (NO modules: user did not say). Passwords are NOT set: the user runs app_set_password per person. Open: Michelle's modules; client IP is trusted from cf-connecting-ip inside the Edge Function (verify with Check connection from the office before running 13); the office rule is checked at login and by app_verify (open + every 5 min), not on every database request; accounting app (charles tbl_User) keeps separate passwords.

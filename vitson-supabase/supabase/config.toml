@@ -1,4 +1,9 @@
 # Only the function config is needed here; keep the rest of your existing config if you already have one.
 [functions.set-default-alias]
-# The browser calls this with the project's anon key, which the platform checks (verify_jwt).
+# The browser calls this with the project's anon key, which the platform checks (verify_jwt);
+# the function also requires a valid app session (x-app-token) with the deliveries module.
 verify_jwt = true
+
+[functions.app-login]
+# This IS the login: the caller has no session yet (and the publishable key is not a JWT), so the platform check is off.
+verify_jwt = false

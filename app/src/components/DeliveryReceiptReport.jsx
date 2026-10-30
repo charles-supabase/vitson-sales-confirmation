@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { formatTicket } from "../lib/format.js";
 
 const norm = (s) => String(s ?? "").trim().toLowerCase();
 const mdy = (iso) => {
@@ -75,7 +76,8 @@ export default function DeliveryReceiptReport({ data, big, lookups, onClose }) {
             name,
             weights,
             total: weights.reduce((a, b) => a + b, 0),
-            stock: n === "body" ? job.stock_no ?? "" : name,
+            // roll type as printed: Body, 1x1, CC for every other type (collar, cuffs, ...)
+            kind: n === "body" ? "Body" : n === "1x1" ? "1x1" : "CC",
             size: size ?? "",
           };
         })
@@ -83,12 +85,10 @@ export default function DeliveryReceiptReport({ data, big, lookups, onClose }) {
       return {
         key: d.id,
         shade,
-        // first two groups of the ticket (A#-#####), as on the paper packing list
-        ticket: String(job.job_ticket ?? "").replace(/[\s-]/g, "").slice(0, 7),
+        ticket: formatTicket(job.job_ticket), // A#-#####-#-AA-#
         cusJo: sc.cus_jo_no ?? "",
         fabric: lookups.fabrics.find((f) => f.id === job.fabric_id)?.fabric_name ?? "",
         process: lookups.dyeProcesses.find((p) => p.id === job.dye_process_id)?.dye_process_name ?? "",
-        colorRef: lookups.colorRefs.find((c) => c.id === job.color_ref_id)?.color_ref_code ?? "",
         lines,
       };
     });
@@ -147,11 +147,11 @@ export default function DeliveryReceiptReport({ data, big, lookups, onClose }) {
                   <tr key={`${b.key}-${l.typeId}`}>
                     <td className="num">{l.weights.length}</td>
                     <td className="num">{kg(l.total)}</td>
-                    <td className="dr-desc"><span>{l.stock}</span><span>{b.fabric}</span><span>{b.process}</span><span>{b.shade}</span></td>
-                    <td>{b.colorRef}</td>
+                    <td className="dr-desc"><span>{l.kind}</span><span>{b.fabric}</span><span>{b.process}</span></td>
+                    <td>{b.shade}</td>
                     <td>{b.cusJo}</td>
-                    <td className="dr-fw"><i className="dr-ln" /></td>
                     <td className="num">{l.size}</td>
+                    <td />
                   </tr>
                 ))}
               </tbody>
@@ -179,13 +179,13 @@ export default function DeliveryReceiptReport({ data, big, lookups, onClose }) {
                   <tr key={`${b.key}-${l.typeId}`}>
                     <td className="num">{l.weights.length}</td>
                     <td className="num">{kg(l.total)} kls</td>
-                    <td>{l.stock}</td>
+                    <td>{l.kind}</td>
                     <td>{b.fabric}</td>
                     <td>{b.process}</td>
                     <td>{b.shade}</td>
                     <td>JO {b.cusJo}</td>
                     <td className="num">{l.size}</td>
-                    <td>{b.colorRef}</td>
+                    <td />
                     <td />
                   </tr>
                 ))}

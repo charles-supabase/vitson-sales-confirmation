@@ -12,7 +12,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-app-token",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -24,6 +24,19 @@ const isId = (v: unknown): v is number => typeof v === "number" && Number.isInte
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  // Only a signed-in user with the deliveries module may use this (the session is checked by the database, public.app_can)
+  const check = await fetch(`${Deno.env.get("SUPABASE_URL")}/rest/v1/rpc/app_can`, {
+    method: "POST",
+    headers: {
+      apikey: Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY") ?? ""}`,
+      "x-app-token": req.headers.get("x-app-token") ?? "",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ p_module: "deliveries" }),
+  }).catch(() => null);
+  if (!check || !check.ok || (await check.json().catch(() => false)) !== true) return json({ error: "Sign in again: this needs a valid session." }, 401);
 
   const url = Deno.env.get("CHARLES_SUPABASE_URL");
   const key = Deno.env.get("CHARLES_SERVICE_ROLE_KEY");

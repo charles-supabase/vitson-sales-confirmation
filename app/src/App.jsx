@@ -22,6 +22,8 @@ import {
 } from "./lib/salesApi.js";
 import { formatDateTime, formatTicket } from "./lib/format.js";
 import { hasUnsavedChanges, unsavedPrompt } from "./lib/unsavedGuard.js";
+import { MODULES, useAuth } from "./lib/auth.jsx";
+import ChangePasswordDialog from "./components/ChangePasswordDialog.jsx";
 
 const TABS = [
   { id: "confirmation", label: "Sales Confirmation", theme: "confirm" },
@@ -42,7 +44,10 @@ const readCollapsed = () => {
 };
 
 export default function App() {
-  const [view, setView] = useState("entry"); // "entry" | "jobOrders" | "recipes" | "tracking" | "deliveries"
+  const auth = useAuth();
+  const allowedViews = Object.keys(MODULES).filter((v) => auth.can(MODULES[v])); // the dashboard items this user may open
+  const [view, setView] = useState(() => allowedViews[0] ?? "none"); // "entry" | "jobOrders" | "recipes" | "tracking" | "deliveries"
+  const [pwOpen, setPwOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [tab, setTab] = useState("confirmation");
 
@@ -192,6 +197,8 @@ export default function App() {
 
   // Go to the entry screen for a confirmation / job order (from a list or a double-click)
   const openEntryNow = ({ salesId, jobOrderId: wanted = null, tab: nextTab = "confirmation", filter = null }) => {
+    if (!auth.can(MODULES.entry)) return;
+    if (nextTab === "recipe" && !auth.can(MODULES.recipes)) nextTab = "jobOrder";
     setView("entry");
     setConfirmationFilter(filter);
     setWantedJobOrderId(wanted);
@@ -210,6 +217,7 @@ export default function App() {
 
   const goView = (next) =>
     guarded(() => {
+      if (!auth.can(MODULES[next])) return;
       setView(next);
       if (next === "entry") setConfirmationFilter(null);
       toggleSidebar(true);
@@ -284,7 +292,9 @@ export default function App() {
     { id: "recipes", label: "Recipe", icon: <FlaskIcon /> },
     { id: "tracking", label: "Tracking", icon: <TruckIcon /> },
     { id: "deliveries", label: "Deliveries", icon: <BoxIcon /> },
-  ];
+  ].filter((n) => auth.can(MODULES[n.id]));
+  // the Recipe tab belongs to the recipe module
+  const tabs = TABS.filter((t) => t.id !== "recipe" || auth.can(MODULES.recipes));
 
   return (
     <div className={`shell ${collapsed ? "is-collapsed" : ""}`}>
@@ -322,8 +332,18 @@ export default function App() {
 
       <main className="main" id="entry">
         <header className="page-head">
-          <h1>{VIEW_TITLES[view]}</h1>
+          <h1>{VIEW_TITLES[view] ?? "Vitson"}</h1>
+          <div className="user-bar">
+            <span>Signed in as <b>{auth.user?.display_name}</b>{auth.user?.is_super_admin ? " (super admin)" : ""}</span>
+            <button type="button" className="link-btn" onClick={() => setPwOpen(true)}>Change password</button>
+            <button type="button" className="link-btn" onClick={() => guarded(() => auth.logout())}>Log out</button>
+          </div>
         </header>
+
+        {allowedViews.length === 0 && (
+          <div className="banner banner-warn" role="status">Your account has no access to any module yet. Ask Charles or Susan to give you access.</div>
+        )}
+        <ChangePasswordDialog open={pwOpen} onClose={() => setPwOpen(false)} onDone={() => notify("success", "Password changed", "Your password has been changed. Other devices need to sign in again.")} />
 
         {loadError && (
           <div className="banner banner-error" role="alert">
@@ -340,7 +360,7 @@ export default function App() {
         {view === "entry" && (
           <>
             <div className="tabs" role="tablist" aria-label="Entry sections">
-              {TABS.map((t, i) => {
+              {tabs.map((t, i) => {
                 const disabled = tabState[t.id].disabled && tab !== t.id;
                 return (
                   <button
