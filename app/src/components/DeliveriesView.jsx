@@ -399,7 +399,7 @@ export default function DeliveriesView({ lookups, confirmations, notify, confirm
         <div className="deliv-card">
           <div className="field">
             <label htmlFor="dv-search">Job ticket</label>
-            <TicketInput id="dv-search" autoComplete="off" maxLength={13} value={search} onValue={setSearch} />
+            <TicketInput id="dv-search" autoComplete="off" maxLength={15} value={search} onValue={setSearch} />
           </div>
           {candError && <p className="msg-error">{candError}</p>}
           {candLoading && <p className="msg">Searching...</p>}

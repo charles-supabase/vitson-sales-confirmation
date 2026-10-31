@@ -261,7 +261,7 @@ export default function TrackingView({ lookups, confirmations, notify, confirmDe
           >
             <div className="field">
               <label htmlFor="track-ticket">Job ticket</label>
-              <TicketInput id="track-ticket" list="track-tickets" autoComplete="off" maxLength={13} value={text} onValue={onTicketChange} />
+              <TicketInput id="track-ticket" list="track-tickets" autoComplete="off" maxLength={15} value={text} onValue={onTicketChange} />
               <datalist id="track-tickets">
                 {tickets.map((j) => (
                   <option key={j.id} value={formatTicket(j.job_ticket)} />

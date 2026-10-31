@@ -57,7 +57,7 @@ export function TicketField({ label, error, hint, className, value, onValue, str
   const id = useId();
   return (
     <Field id={id} label={label} error={error} hint={hint} className={className}>
-      <TicketInput id={id} value={value} onValue={onValue} strict={strict} inputMode="text" autoComplete="off" maxLength={13} {...input} />
+      <TicketInput id={id} value={value} onValue={onValue} strict={strict} inputMode="text" autoComplete="off" maxLength={15} {...input} />
     </Field>
   );
 }

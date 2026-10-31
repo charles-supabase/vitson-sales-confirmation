@@ -112,3 +112,7 @@ Job ticket pattern is A#-#####-#-AA-# (format.js typingTicket(strict), isTicket;
 ## 10. Access control (built, SQL tested on the live DB in rolled-back transactions; Edge Function and UI NOT run)
 Own users table in vitson-recipe (NOT charles' tbl_User, NOT Supabase Auth). Login = Edge Function app-login (verify_jwt off) -> public.app_login -> random session token (SHA-256 stored) sent as header x-app-token by lib/supabase.js; RLS reads it through public.app_can(module) (request.headers). lib/auth.jsx (AuthProvider, MODULES map, can()), LoginView, ChangePasswordDialog; App.jsx hides nav items/tabs by module. set-default-alias now also requires the token + module deliveries.
 Users seeded: Charles, Susan (super admin), Ana (all), Mark, Joyce, Arnel (all but recipe), Michelle (NO modules: user did not say). Passwords are NOT set: the user runs app_set_password per person. Open: Michelle's modules; client IP is trusted from cf-connecting-ip inside the Edge Function (verify with Check connection from the office before running 13); the office rule is checked at login and by app_verify (open + every 5 min), not on every database request; accounting app (charles tbl_User) keeps separate passwords.
+
+Ticket pattern now alnum at positions 1, 9, 10 (A), digits elsewhere; maxLength 15 in all TicketInput uses. Job order form: jo-split layout; body touch is the default for 1x1 and cc touch (followers only while equal to the old body value or empty).
+
+isTicket(): >= 7 compact characters and every character fits the shape; the tail (#-AA-#) is optional.

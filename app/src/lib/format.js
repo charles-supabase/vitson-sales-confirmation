@@ -34,27 +34,30 @@ export function formatTicket(raw) {
   return parts.join("-");
 }
 /**
- * Live formatting while typing: A#-#####-#-AA-# (A = letter, # = digit, 11 characters). With `strict`, a character that doesn't
- * fit its position is ignored and letters become capitals; without it (searches, old tickets) any character is kept.
+ * Live formatting while typing: A#-#####-#-AA-# (A = letter or digit, # = digit, 11 characters, 15 with the dashes; only A#-##### is required). With `strict`,
+ * a character that doesn't fit its position is ignored and letters become capitals; without it (searches, old tickets) any character is kept.
  */
-const TICKET_SHAPE = "LDDDDDDDLLD";
-export function typingTicket(raw, strict = false) {
-  let compact = String(raw ?? "").replace(/[\s-]/g, "");
-  if (strict) {
-    let out = "";
-    for (const ch of compact.toUpperCase()) {
-      if (out.length >= TICKET_SHAPE.length) break;
-      const ok = TICKET_SHAPE[out.length] === "L" ? /[A-Z]/.test(ch) : /[0-9]/.test(ch);
-      if (ok) out += ch;
-    }
-    compact = out;
-  } else {
-    compact = compact.slice(0, 11);
+const TICKET_SHAPE = "XDDDDDDDXXD"; // X = letter or digit, D = digit
+const fitShape = (text) => {
+  let out = "";
+  for (const ch of String(text ?? "").replace(/[\s-]/g, "").toUpperCase()) {
+    if (out.length >= TICKET_SHAPE.length) break;
+    if (TICKET_SHAPE[out.length] === "X" ? /[A-Z0-9]/.test(ch) : /[0-9]/.test(ch)) out += ch;
   }
+  return out;
+};
+export function typingTicket(raw, strict = false) {
+  const compact = strict ? fitShape(raw) : String(raw ?? "").replace(/[\s-]/g, "").slice(0, 11);
   return compact ? formatTicket(compact) : "";
 }
-/** A complete ticket in the A#-#####-#-AA-# pattern (with or without dashes). */
-export const isTicket = (v) => /^[A-Z]\d{7}[A-Z]{2}\d$/.test(String(v ?? "").replace(/[\s-]/g, "").toUpperCase());
+/**
+ * A usable ticket: the first two groups A#-##### are required (7 characters); the rest (#-AA-#) may stay empty or partly
+ * filled, but what is there must follow the pattern.
+ */
+export const isTicket = (v) => {
+  const compact = String(v ?? "").replace(/[\s-]/g, "").toUpperCase();
+  return compact.length >= 7 && fitShape(compact) === compact;
+};
 /** What is stored: the ticket without dashes or spaces. */
 export const rawTicket = (v) => String(v ?? "").replace(/[\s-]/g, "");
 /** For comparing tickets typed with or without dashes. */

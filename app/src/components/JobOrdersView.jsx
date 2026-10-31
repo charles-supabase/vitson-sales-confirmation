@@ -210,7 +210,7 @@ export default function JobOrdersView({ lookups, confirmations, onOpen, notify }
         </div>
         <div className="field">
           <label htmlFor="jv-ticket">Job ticket</label>
-          <TicketInput id="jv-ticket" autoComplete="off" maxLength={13} value={f.jobTicket} onValue={(v) => setF((s) => ({ ...s, jobTicket: v }))} />
+          <TicketInput id="jv-ticket" autoComplete="off" maxLength={15} value={f.jobTicket} onValue={(v) => setF((s) => ({ ...s, jobTicket: v }))} />
         </div>
         <div className="field">
           <label htmlFor="jv-date">Date</label>

@@ -48,6 +48,14 @@ function JobOrderForm({ initial, customerId, lookups, onSubmit, onDirty, readOnl
   useEffect(() => onDirty(JSON.stringify(values) !== initialJson), [values, initialJson, onDirty]);
 
   const set = (key) => (e) => setValues((v) => ({ ...v, [key]: e.target.value }));
+  // The body touch is the default of the 1x1 and the collar and cuffs touch: they follow it until someone picks their own
+  const setBodyTouch = (e) => {
+    const v = e.target.value;
+    setValues((s) => {
+      const follow = (cur) => (cur === "" || cur === s.body_touch_id ? v : cur);
+      return { ...s, body_touch_id: v, "1x1_touch_id": follow(s["1x1_touch_id"]), cc_touch_id: follow(s.cc_touch_id) };
+    });
+  };
   const setCheck = (key) => (e) => setValues((v) => ({ ...v, [key]: e.target.checked }));
 
   const opt = useMemo(
@@ -67,7 +75,7 @@ function JobOrderForm({ initial, customerId, lookups, onSubmit, onDirty, readOnl
     if (readOnly) return;
     const next = {};
     if (!values.job_ticket.trim()) next.job_ticket = "Enter the job ticket.";
-    else if (strictTicket && !isTicket(values.job_ticket)) next.job_ticket = "The job ticket must look like A1-23456-7-AB-8 (letter, digit, 5 digits, digit, 2 letters, digit).";
+    else if (strictTicket && !isTicket(values.job_ticket)) next.job_ticket = "The job ticket needs at least A#-##### (a letter or digit, then 6 digits), for example A1-23456.";
     if (!values.date_job_order) next.date_job_order = "Enter the job order date.";
     if (!values.dye_process_id) next.dye_process_id = "Select a dye process.";
     if (!values.fabric_id) next.fabric_id = "Select a fabric.";
@@ -114,7 +122,7 @@ function JobOrderForm({ initial, customerId, lookups, onSubmit, onDirty, readOnl
       <fieldset className="group">
         <legend>Job order</legend>
         <div className="form-grid cols-3">
-          <TicketField label="Job ticket" strict={strictTicket} hint="Format A#-#####-#-AA-#" value={values.job_ticket} onValue={(v) => setValues((s) => ({ ...s, job_ticket: v }))} error={errors.job_ticket} />
+          <TicketField label="Job ticket" strict={strictTicket} hint="A#-#####-#-AA-# (A = letter or digit). Only A#-##### is required." value={values.job_ticket} onValue={(v) => setValues((s) => ({ ...s, job_ticket: v }))} error={errors.job_ticket} />
           <TextField label="Date" type="date" value={values.date_job_order} onChange={set("date_job_order")} error={errors.date_job_order} />
           <TextField label="Stock no." value={values.stock_no} onChange={set("stock_no")} />
         </div>
@@ -144,9 +152,10 @@ function JobOrderForm({ initial, customerId, lookups, onSubmit, onDirty, readOnl
         </div>
       </fieldset>
 
+      <div className="jo-split">
       <fieldset className="group">
         <legend>Specifications</legend>
-        <div className="form-grid cols-3">
+        <div className="form-grid cols-1">
           <TextField label="SPI" type="number" min="0" step="1" value={values.spi} onChange={set("spi")} error={errors.spi} />
           <TextField label="Greige yield" type="number" min="0" step="1" value={values.greigh_yld} onChange={set("greigh_yld")} error={errors.greigh_yld} />
           <TextField label="Required yield" type="number" min="0" step="1" value={values.required_yld} onChange={set("required_yld")} error={errors.required_yld} />
@@ -169,12 +178,13 @@ function JobOrderForm({ initial, customerId, lookups, onSubmit, onDirty, readOnl
           {TOUCH_GROUPS.map((g) => (
             <div className="touch-row" key={g.key}>
               <span className="touch-label">{g.label}</span>
-              <SelectField label="Touch" options={opt.touch} value={values[g.touch]} onChange={set(g.touch)} />
+              <SelectField label="Touch" options={opt.touch} value={values[g.touch]} onChange={g.key === "body" ? setBodyTouch : set(g.touch)} />
               <TextField label="Size" type="number" min="0" step="1" value={values[g.size]} onChange={set(g.size)} error={errors[g.size]} />
             </div>
           ))}
         </div>
       </fieldset>
+      </div>
       </fieldset>
     </form>
   );

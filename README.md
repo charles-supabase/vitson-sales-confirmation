@@ -221,3 +221,8 @@ Setup order: (1) `sql/12_app_users.sql`; (2) in the vitson-supabase folder: `sup
 Import the Git repository in Vercel with **Root Directory = app**, Framework Preset **Vite** (build `npm run build`, output `dist`). Environment variables (Project Settings -> Environment Variables, tick Production, Preview and Development):
 `VITE_VITSON_SUPABASE_URL` and `VITE_VITSON_SUPABASE_ANON_KEY` (vitson-recipe URL and anon/publishable key). Vite puts them into the build, so redeploy after changing them. Never add a service role key to Vercel or to any VITE_ variable.
 `OFFICE_PUBLIC_IP` is NOT a Vercel variable here: it is a secret of the app-login Edge Function (`supabase secrets set OFFICE_PUBLIC_IP=...`). `.env` and `.env.local` are in `.gitignore`.
+
+- **Job ticket (second correction):** `A#-#####-#-AA-#` where each A is a letter OR a digit and # is a digit (11 characters, 15 with dashes). The input box limit was 13 characters, which stopped the last digit; it is 15 now in every ticket box.
+- **Job order form:** Specifications run down the left, Touch and size on the right. Choosing the Body touch sets the 1x1 and the Collar and cuffs touch to the same value, until you pick a different one for them yourself.
+
+- **Job ticket (third correction):** only `A#-#####` is required (letter or digit, then 6 digits). `#-AA-#` may be left empty or partly filled; what is typed must still follow the pattern.
