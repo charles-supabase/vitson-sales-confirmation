@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconButton } from "./Icons.jsx";
 import Modal from "./Modal.jsx";
 import { CheckField, SelectField, TextField, TicketField, toOptions } from "./FormFields.jsx";
-import { createColorRef, createCustomerPrice, deleteJobOrder, findCustomerPrice, friendlyError, saveJobOrder } from "../lib/salesApi.js";
+import { createColor, createColorRef, createCustomerPrice, deleteJobOrder, findCustomerPrice, friendlyError, saveJobOrder } from "../lib/salesApi.js";
 import { formatDate, formatMoney, formatTicket, formatWeight, isTicket, rawTicket, today, toId, toInt, toText } from "../lib/format.js";
 import PriceDialog from "./PriceDialog.jsx";
 import { LockBanner, useJobOrderLocks } from "../lib/lock.jsx";
@@ -17,7 +17,9 @@ const TOUCH_GROUPS = [
   { key: "cc", label: "Collar and cuffs", touch: "cc_touch_id", size: "cc_size" },
 ];
 
-function JobOrderForm({ initial, customerId, lookups, onSubmit, onDirty, readOnly = false }) {
+const isNA = (s) => /^n\s*\/\s*a$/i.test(String(s).trim());
+
+function JobOrderForm({ initial, customerId, lookups, onSubmit, onDirty, onNewEntry, readOnly = false }) {
   const [values, setValues] = useState(() => ({
     job_ticket: formatTicket(initial?.job_ticket),
     date_job_order: initial?.date_job_order ?? today(),
@@ -25,7 +27,7 @@ function JobOrderForm({ initial, customerId, lookups, onSubmit, onDirty, readOnl
     dye_process_id: str(initial?.dye_process_id),
     fabric_id: str(initial?.fabric_id),
     tone_id: str(initial?.tone_id),
-    color_id: str(initial?.color_id),
+    color_name: lookups.colors.find((c) => c.id === initial?.color_id)?.color_name ?? "",
     color_ref_code: lookups.colorRefs.find((c) => c.id === initial?.color_ref_id)?.color_ref_code ?? "",
     spi: str(initial?.spi),
     greigh_yld: str(initial?.greigh_yld),
@@ -56,6 +58,30 @@ function JobOrderForm({ initial, customerId, lookups, onSubmit, onDirty, readOnl
       return { ...s, body_touch_id: v, "1x1_touch_id": follow(s["1x1_touch_id"]), cc_touch_id: follow(s.cc_touch_id) };
     });
   };
+  // A new color / color reference is offered for saving as soon as the user leaves the box (or presses Enter in it),
+  // so the form stays open and the rest of the data can be entered. N/A needs no question.
+  const isNewEntry = (kind) => {
+    const text = (kind === "color" ? values.color_name : values.color_ref_code).trim();
+    if (!text || isNA(text)) return null;
+    const known = kind === "color"
+      ? lookups.colors.some((c) => c.color_name.trim().toLowerCase() === text.toLowerCase())
+      : lookups.colorRefs.some((c) => c.color_ref_code.trim().toLowerCase() === text.toLowerCase());
+    return known ? null : text;
+  };
+  const checkNew = (kind) => {
+    const text = isNewEntry(kind);
+    if (text) onNewEntry?.(kind, text);
+  };
+  // Moving to a button (Save job order, Cancel) is not "carrying on": Save asks at submit, Cancel asks nothing
+  const leaveField = (e, kind) => {
+    if (!e.relatedTarget?.closest?.("button")) checkNew(kind);
+  };
+  const enterNew = (kind) => (e) => {
+    if (e.key === "Enter" && isNewEntry(kind)) {
+      e.preventDefault(); // don't save the whole job order yet
+      checkNew(kind);
+    }
+  };
   const setCheck = (key) => (e) => setValues((v) => ({ ...v, [key]: e.target.checked }));
 
   const opt = useMemo(
@@ -63,7 +89,6 @@ function JobOrderForm({ initial, customerId, lookups, onSubmit, onDirty, readOnl
       dye: toOptions(lookups.dyeProcesses, "dye_process_name", { keepId: initial?.dye_process_id }),
       fabric: toOptions(lookups.fabrics, "fabric_name", { keepId: initial?.fabric_id }),
       tone: toOptions(lookups.tones, "tone_name", { keepId: initial?.tone_id }),
-      color: toOptions(lookups.colors, "color_name"),
       touch: toOptions(lookups.touches, "touch_name"),
       reason: toOptions(lookups.reprocessReasons, "defect_names"),
     }),
@@ -88,8 +113,14 @@ function JobOrderForm({ initial, customerId, lookups, onSubmit, onDirty, readOnl
     if (Object.keys(next).length) return;
 
     // Existing code (case-insensitive) -> its id. A code that isn't in the list yet is confirmed before it is added.
+    // "N/A" is accepted as it is: no lookup and no question (its record is created silently the first time).
     const typedRef = values.color_ref_code.trim();
     const knownRef = typedRef ? lookups.colorRefs.find((c) => c.color_ref_code.trim().toLowerCase() === typedRef.toLowerCase()) : null;
+    const typedColor = values.color_name.trim();
+    const knownColor = typedColor ? lookups.colors.find((c) => c.color_name.trim().toLowerCase() === typedColor.toLowerCase()) : null;
+    const extras = {};
+    if (typedColor && !knownColor) extras[isNA(typedColor) ? "naColor" : "newColor"] = typedColor;
+    if (typedRef && !knownRef) extras[isNA(typedRef) ? "naColorRef" : "newColorRef"] = typedRef;
 
     onSubmit({
       job_ticket: toText(rawTicket(values.job_ticket)), // stored without dashes
@@ -98,7 +129,7 @@ function JobOrderForm({ initial, customerId, lookups, onSubmit, onDirty, readOnl
       dye_process_id: toId(values.dye_process_id),
       fabric_id: toId(values.fabric_id),
       tone_id: toId(values.tone_id),
-      color_id: toId(values.color_id),
+      color_id: knownColor ? knownColor.id : null,
       color_ref_id: knownRef ? knownRef.id : null,
       spi: toInt(values.spi),
       greigh_yld: toInt(values.greigh_yld),
@@ -113,7 +144,7 @@ function JobOrderForm({ initial, customerId, lookups, onSubmit, onDirty, readOnl
       "1x1_size": toInt(values["1x1_size"]),
       cc_touch_id: toId(values.cc_touch_id),
       cc_size: toInt(values.cc_size),
-    }, typedRef && !knownRef ? { newColorRef: typedRef } : {});
+    }, extras);
   };
 
   return (
@@ -122,7 +153,7 @@ function JobOrderForm({ initial, customerId, lookups, onSubmit, onDirty, readOnl
       <fieldset className="group">
         <legend>Job order</legend>
         <div className="form-grid cols-3">
-          <TicketField label="Job ticket" strict={strictTicket} hint="A#-#####-#-AA-# (A = letter or digit). Only A#-##### is required." value={values.job_ticket} onValue={(v) => setValues((s) => ({ ...s, job_ticket: v }))} error={errors.job_ticket} />
+          <TicketField label="Job ticket" strict={strictTicket} value={values.job_ticket} onValue={(v) => setValues((s) => ({ ...s, job_ticket: v }))} error={errors.job_ticket} />
           <TextField label="Date" type="date" value={values.date_job_order} onChange={set("date_job_order")} error={errors.date_job_order} />
           <TextField label="Stock no." value={values.stock_no} onChange={set("stock_no")} />
         </div>
@@ -134,7 +165,12 @@ function JobOrderForm({ initial, customerId, lookups, onSubmit, onDirty, readOnl
           <SelectField label="Dye process" options={opt.dye} value={values.dye_process_id} onChange={set("dye_process_id")} error={errors.dye_process_id} />
           <SelectField label="Fabric" options={opt.fabric} value={values.fabric_id} onChange={set("fabric_id")} error={errors.fabric_id} />
           <SelectField label="Tone" options={opt.tone} value={values.tone_id} onChange={set("tone_id")} error={errors.tone_id} />
-          <SelectField label="Color" options={opt.color} value={values.color_id} onChange={set("color_id")} />
+          <TextField label="Color" list="color-list" autoComplete="off" placeholder="Pick one or type a new color" value={values.color_name} onChange={set("color_name")} onBlur={(e) => leaveField(e, "color")} onKeyDown={enterNew("color")} />
+          <datalist id="color-list">
+            {lookups.colors.map((c) => (
+              <option key={c.id} value={c.color_name} />
+            ))}
+          </datalist>
           <TextField
             label="Color reference"
             list="color-ref-list"
@@ -142,7 +178,8 @@ function JobOrderForm({ initial, customerId, lookups, onSubmit, onDirty, readOnl
             placeholder="Pick one or type a new code"
             value={values.color_ref_code}
             onChange={set("color_ref_code")}
-            hint="A code that isn't in the list yet will be offered for saving as a new color reference."
+            onBlur={(e) => leaveField(e, "colorRef")}
+            onKeyDown={enterNew("colorRef")}
           />
           <datalist id="color-ref-list">
             {lookups.colorRefs.map((c) => (
@@ -263,20 +300,52 @@ export default function JobOrderSection({
     setFormOpen(true);
   };
 
-  const handleSave = (fields, extras = {}) => {
-    if (!extras.newColorRef) return doSave(fields);
-    const code = extras.newColorRef;
-    // Back to the form = nothing saved; the job order is saved only together with the new color reference.
+  // Adds what is new to the lookup tables (N/A silently, other new names only after the user agreed), then saves the job order
+  const saveWithLookups = async (fields, extras) => {
+    const patch = {};
+    if (extras.newColor) patch.color_id = (await createColor(extras.newColor)).id;
+    if (extras.naColor) patch.color_id = (await createColor("N/A")).id;
+    if (extras.newColorRef) patch.color_ref_id = (await createColorRef(extras.newColorRef)).id;
+    if (extras.naColorRef) patch.color_ref_id = (await createColorRef("N/A")).id;
+    if (Object.keys(patch).length) await reloadLookups();
+    await doSave({ ...fields, ...patch });
+  };
+
+  // Offered while the form is still open: saving adds the name to the list and the user carries on entering data
+  const askNewEntry = (kind, text) => {
+    const label = kind === "color" ? "color" : "color reference";
     confirmDelete({
-      title: "Save a new color reference?",
-      message: `"${code}" isn't in the color reference list yet. Save it as a new color reference and use it for this job order?`,
-      confirmLabel: "Save color reference",
+      title: `Save a new ${label}?`,
+      message: `"${text}" isn't in the ${label} list yet. Save it to the list for future lookups?`,
+      confirmLabel: `Save ${label}`,
       tone: "primary",
       onConfirm: async () => {
-        const created = await createColorRef(code);
+        if (kind === "color") await createColor(text);
+        else await createColorRef(text);
         await reloadLookups();
-        await doSave({ ...fields, color_ref_id: created.id });
       },
+    });
+  };
+
+  const handleSave = (fields, extras = {}) => {
+    const asked = [];
+    if (extras.newColor) asked.push(`the color "${extras.newColor}"`);
+    if (extras.newColorRef) asked.push(`the color reference "${extras.newColorRef}"`);
+    if (asked.length === 0) {
+      saveWithLookups(fields, extras).catch((err) => {
+        setFormError(friendlyError(err));
+        setSaving(false);
+      });
+      return;
+    }
+    // Back to the form = nothing saved; the job order is saved only together with the new entries.
+    const plural = asked.length > 1;
+    confirmDelete({
+      title: extras.newColor && extras.newColorRef ? "Save a new color and color reference?" : extras.newColor ? "Save a new color?" : "Save a new color reference?",
+      message: `${asked.join(" and ")} ${plural ? "are" : "is"} not in the list yet. Save ${plural ? "them" : "it"} for future lookups and use ${plural ? "them" : "it"} for this job order?`,
+      confirmLabel: "Save and continue",
+      tone: "primary",
+      onConfirm: () => saveWithLookups(fields, extras),
     });
   };
 
@@ -424,7 +493,7 @@ export default function JobOrderSection({
       >
         {formError && <div className="banner banner-error" role="alert">{formError}</div>}
         {readOnly && <LockBanner onUnlock={() => locks.unlock(editing.id)} />}
-        <JobOrderForm initial={editing} customerId={confirmation.customer_id} lookups={lookups} onSubmit={handleSave} onDirty={markDirty} readOnly={readOnly} />
+        <JobOrderForm initial={editing} customerId={confirmation.customer_id} lookups={lookups} onSubmit={handleSave} onDirty={markDirty} onNewEntry={askNewEntry} readOnly={readOnly} />
       </Modal>
 
       <PriceDialog ask={priceAsk} onAnswer={(v) => priceAsk?.resolve(v)} />

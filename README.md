@@ -226,3 +226,11 @@ Import the Git repository in Vercel with **Root Directory = app**, Framework Pre
 - **Job order form:** Specifications run down the left, Touch and size on the right. Choosing the Body touch sets the 1x1 and the Collar and cuffs touch to the same value, until you pick a different one for them yourself.
 
 - **Job ticket (third correction):** only `A#-#####` is required (letter or digit, then 6 digits). `#-AA-#` may be left empty or partly filled; what is typed must still follow the pattern.
+
+- **Job order form, Color and Color reference:** both are typed boxes with a pick list. **N/A** is accepted as it is: no lookup and no question (its record is created silently the first time, `N/A` already exists in the color references).
+  Any other new color or color reference asks once ("Save and continue"; a new color and a new reference are asked together) and is added to `tbl_color` / `tbl_color_ref` for future lookups. The hint texts under Job ticket and Color reference are gone.
+
+- Run `sql/14_color_insert.sql` once: `tbl_color` had no insert policy, so a new color could not be saved.
+
+- **New color / color reference (changed):** the question now appears as soon as you leave the box (Tab, click elsewhere, or Enter in it). "Save color" only adds it to the list and you carry on entering the job order; nothing else is saved.
+  If you press Save job order with a new entry still unanswered, it asks then ("Save and continue") and saves the job order together with the new entry.

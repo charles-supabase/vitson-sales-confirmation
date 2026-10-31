@@ -36,7 +36,7 @@ const unwrap = ({ data, error }) => {
 
 export function friendlyError(err) {
   if (err?.code === "23503") return "This record is still linked to other records. Remove the linked records first.";
-  if (err?.code === "42501") return "You are not allowed to do this, or your session has ended. Sign in again, or ask Charles or Susan for access.";
+  if (err?.code === "42501") return `Not allowed: ${err.message}. If you were just signed out, sign in again; otherwise a policy for this table is missing (see the sql folder) or you need access from Charles or Susan.`;
   return err?.message ?? "Something went wrong.";
 }
 
@@ -112,6 +112,14 @@ export async function listJobOrders(salesId) {
 }
 export const saveJobOrder = (row) => save(T.jobOrder, row);
 export const deleteJobOrder = (id) => remove(T.jobOrder, id);
+
+/** Adds a color name to tbl_color (or returns the existing one with the same name). */
+export async function createColor(name) {
+  const escaped = name.replace(/[\\%_]/g, "\\$&");
+  const existing = unwrap(await supabase.from("tbl_color").select("*").ilike("color_name", escaped).limit(1));
+  if (existing.length) return existing[0];
+  return unwrap(await supabase.from("tbl_color").insert({ color_name: name }).select().single());
+}
 
 /** Adds a color reference code to tbl_color_ref (or returns the existing one with the same code). */
 export async function createColorRef(code) {

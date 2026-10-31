@@ -116,3 +116,9 @@ Users seeded: Charles, Susan (super admin), Ana (all), Mark, Joyce, Arnel (all b
 Ticket pattern now alnum at positions 1, 9, 10 (A), digits elsewhere; maxLength 15 in all TicketInput uses. Job order form: jo-split layout; body touch is the default for 1x1 and cc touch (followers only while equal to the old body value or empty).
 
 isTicket(): >= 7 compact characters and every character fits the shape; the tail (#-AA-#) is optional.
+
+Job order form: color is now typed (values.color_name, datalist) like color reference; isNA() skips lookup/prompt and ensures an N/A row via createColor/createColorRef; one combined confirm for new color + new ref (saveWithLookups).
+
+sql/14_color_insert.sql: tbl_color had no INSERT policy (new colors failed with 42501). friendlyError now shows the database message for 42501 so the table is visible.
+
+New color/ref prompt is field-level (onBlur unless focus goes to a button, or Enter): askNewEntry creates the record + reloadLookups and keeps the form open; submit-time prompt (handleSave) remains as fallback and saves the job order.
